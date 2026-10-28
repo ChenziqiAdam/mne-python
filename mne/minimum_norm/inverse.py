@@ -8,6 +8,7 @@ from math import sqrt
 import numpy as np
 from scipy import linalg
 
+from .._scientific_checkers import _module as _sc
 from .._fiff.constants import FIFF
 from .._fiff.matrix import (
     _read_named_matrix,
@@ -1109,6 +1110,14 @@ def _apply_inverse(
     return_residual,
     use_cps,
 ):
+    _sc_call = None
+    if _sc.enabled():
+        _sc_call = dict(
+            evoked=evoked, inverse_operator=inverse_operator, lambda2=lambda2,
+            method=method, pick_ori=pick_ori, prepared=prepared, label=label,
+            method_params=method_params, return_residual=return_residual,
+            use_cps=use_cps,
+        )
     _validate_type(evoked, Evoked, "evoked")
     _check_reference(evoked, inverse_operator["info"]["ch_names"])
     _check_option("method", method, INVERSE_METHODS)
@@ -1135,6 +1144,8 @@ def _apply_inverse(
     K, noise_norm, vertno, source_nn = _assemble_kernel(
         inv, label, method, pick_ori, use_cps=use_cps
     )
+    if _sc.enabled():
+        _sc.check_inverse_dspm(inv, K, noise_norm, method, pick_ori)
     sol = np.dot(K, evoked.data[sel])  # apply imaging kernel
     logger.info("    Computing residual...")
     # x̂(t) = G ĵ(t) = C ** 1/2 U Π w(t)
@@ -1178,6 +1189,11 @@ def _apply_inverse(
         src_type=src_type,
     )
 
+    if _sc_call is not None:
+        _sc.check_inverse_consistency(
+            _sc_call, stc, method, pick_ori,
+            inv["source_ori"] == FIFF.FIFFV_MNE_FREE_ORI,
+        )
     return (stc, residual) if return_residual else stc
 
 

@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 
+from .._scientific_checkers import _module as _sc
 from ..channels import find_ch_adjacency
 from ..epochs import BaseEpochs
 from ..evoked import Evoked, combine_evoked
@@ -492,6 +493,8 @@ def _pval_from_histogram(T, H0, tail):
     else:  # both tails
         pval = np.array([np.mean(abs(H0) >= abs(t)) for t in T])
 
+    if _sc.enabled():
+        _sc.check_pval_histogram(H0, pval)
     return pval
 
 

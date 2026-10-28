@@ -9,6 +9,7 @@ from numpy.polynomial.legendre import legval
 from scipy.interpolate import RectBivariateSpline
 from scipy.linalg import pinv
 
+from .._scientific_checkers import _module as _sc
 from .._fiff.meas_info import _simplify_info, create_info
 from .._fiff.pick import pick_channels, pick_info, pick_types
 from .._fiff.proj import _has_eeg_average_ref_proj, make_eeg_average_ref_proj
@@ -118,6 +119,8 @@ def _make_interpolation_matrix(pos_from, pos_to, alpha=1e-5):
 
     interpolation = np.hstack([G_to_from, np.ones((n_to, 1))]) @ C_inv[:, :-1]
     assert interpolation.shape == (n_to, n_from)
+    if _sc.enabled():
+        _sc.check_interpolation(C, alpha, interpolation)
     return interpolation
 
 

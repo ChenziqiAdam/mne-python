@@ -13,6 +13,7 @@ from pathlib import Path
 import numpy as np
 from scipy import linalg
 
+from ._scientific_checkers import _module as _sc
 from ._fiff.constants import FIFF
 from ._fiff.open import fiff_open
 from ._fiff.tag import read_tag
@@ -351,6 +352,8 @@ def rotation3d(x=0, y=0, z=0):
         ],
         dtype=float,
     )
+    if _sc.enabled():
+        _sc.check_rotation3d(r, (x, y, z))
     return r
 
 
@@ -758,6 +761,8 @@ def get_ras_to_neuromag_trans(nasion, lpa, rpa):
     rot_trans = np.hstack((trans_l, trans_r))
 
     trans = np.dot(rot_trans, origin_trans)
+    if _sc.enabled():
+        _sc.check_ras_to_neuromag(nasion, lpa, rpa, trans)
     return trans
 
 
@@ -809,6 +814,8 @@ def _cart_to_sph(cart):
     out[:, 1] = np.arctan2(cart[:, 1], cart[:, 0])
     out[:, 2] = np.arccos(cart[:, 2] / norm)
     out = np.nan_to_num(out)
+    if _sc.enabled():
+        _sc.check_cart_to_sph(cart, out)
     return out
 
 
@@ -1303,7 +1310,10 @@ def quat_to_rot(quat):
     """
     from ._transforms_numba import _quat_to_rot
 
-    return _quat_to_rot(quat)
+    rot = _quat_to_rot(quat)
+    if _sc.enabled():
+        _sc.check_quat_to_rot(quat, rot)
+    return rot
 
 
 def rot_to_quat(rot, *, tol=1e-3):
@@ -1329,8 +1339,12 @@ def rot_to_quat(rot, *, tol=1e-3):
     """
     from ._transforms_numba import _one_rot_to_quat
 
+    rot_in = rot
     rot = rot.reshape(rot.shape[:-2] + (9,))
-    return np.apply_along_axis(_one_rot_to_quat, -1, rot, tol=tol)
+    quat = np.apply_along_axis(_one_rot_to_quat, -1, rot, tol=tol)
+    if _sc.enabled():
+        _sc.check_rot_to_quat(rot_in, quat)
+    return quat
 
 
 def _quat_to_affine(quat):
@@ -1431,6 +1445,8 @@ def _quat_mult(one, two):
     signs = np.sign(w)
     signs = np.where(signs, signs, 1)
     out *= signs[..., np.newaxis]
+    if _sc.enabled():
+        _sc.check_quat_mult(one, two, out)
     return out
 
 
@@ -1497,11 +1513,16 @@ def _find_vector_rotation(a, b):
         k = np.cross(a, np.eye(3)[np.argmin(np.abs(a))])
         k /= np.linalg.norm(k)
         R[degenerate & (c < 0)] = 2 * np.outer(k, k) - np.eye(3)
+    if _sc.enabled():
+        _sc.check_find_vector_rotation(a, b, R)
     return R
 
 
 def _average_quats(quats, weights=None):
     """Average unit quaternions properly."""
+    _sc_in = None
+    if _sc.enabled():
+        _sc_in = (quats.copy(), None if weights is None else np.array(weights))
     assert quats.ndim == 2 and quats.shape[1] in (3, 4)
     if weights is None:
         weights = np.ones(quats.shape[0])
@@ -1536,6 +1557,8 @@ def _average_quats(quats, weights=None):
     # consistency.
     avg_quat *= np.sign(avg_quat[avg_quat != 0][0])
     avg_quat = avg_quat[1:]
+    if _sc_in is not None:
+        _sc.check_average_quats(*_sc_in, avg_quat)
     return avg_quat
 
 

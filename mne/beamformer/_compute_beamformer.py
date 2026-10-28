@@ -8,6 +8,7 @@ from copy import deepcopy
 
 import numpy as np
 
+from .._scientific_checkers import _module as _sc
 from .._fiff.proj import Projection, make_projector
 from ..cov import Covariance, make_ad_hoc_cov
 from ..forward.forward import _restrict_forward_to_src_sel, is_fixed_orient
@@ -239,6 +240,11 @@ def _compute_beamformer(
         ["unit-noise-gain-invariant", "unit-noise-gain", "nai", None],
     )
 
+    _sc_in = None
+    if _sc.enabled():
+        _sc_in = (G, n_orient, orient_std,
+                  (G, Cm, reg, n_orient, weight_norm, pick_ori, reduce_rank,
+                   rank, inversion, nn, orient_std, whitener))
     # Whiten the data covariance
     Cm = whitener @ Cm @ whitener.T.conj()
     # Restore to properly Hermitian as large whitening coefs can have bad
@@ -448,6 +454,11 @@ def _compute_beamformer(
             W /= np.sqrt(noise)
 
     W = W.reshape(n_sources * n_orient, n_channels)
+    if _sc_in is not None:
+        _sc.check_beamformer(
+            _sc_in[0], W, max_power_ori, _sc_in[1], weight_norm, pick_ori,
+            reduce_rank, inversion, _sc_in[2], Cm_inv, _sc_in[3],
+        )
     logger.info("Filter computation complete")
     return W, max_power_ori
 

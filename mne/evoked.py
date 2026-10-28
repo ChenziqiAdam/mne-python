@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 
+from ._scientific_checkers import _module as _sc
 from ._fiff.constants import FIFF
 from ._fiff.meas_info import (
     ContainsMixin,
@@ -3425,6 +3426,8 @@ def combine_evoked(
             comment += f" {sign or '+'} {weight}{multiplier}{this_comment}"
     # special-case: combine_evoked([e1, -e2], [1, -1])
     evoked.comment = comment.replace(" - - ", " + ")
+    if _sc.enabled():
+        _sc.check_combine_evoked(all_evoked, weights, evoked)
     return evoked
 
 

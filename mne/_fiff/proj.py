@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Annotated, Any, Literal, Self
 
 import numpy as np
 
+from .._scientific_checkers import _module as _sc
 from ..defaults import _BORDER_DEFAULT, _EXTRAPOLATE_DEFAULT, _INTERPOLATION_DEFAULT
 from ..fixes import _safe_svd
 from ..utils import (
@@ -1418,6 +1419,8 @@ def _make_projector(projs, ch_names, bads=(), include_active=True, inplace=False
             "will yield no components."
         )
 
+    if _sc.enabled():
+        _sc.check_projector(proj, nproj, U)
     return proj, nproj, U
 
 

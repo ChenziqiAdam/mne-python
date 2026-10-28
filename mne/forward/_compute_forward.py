@@ -15,6 +15,7 @@ from copy import deepcopy
 
 import numpy as np
 
+from .._scientific_checkers import _module as _sc
 from .._fiff.constants import FIFF
 from ..bem import _import_openmeeg, _make_openmeeg_geometry
 from ..parallel import parallel_func
@@ -401,6 +402,8 @@ def _sphere_pot_or_field(rr, mri_rr, mri_Q, coils, solution, bem_rr, n_jobs, coi
     B = np.concatenate(
         parallel(p_fun(r, coils, sphere=solution) for r in np.array_split(rr, n_jobs))
     )
+    if coil_type == "meg" and _sc.enabled():
+        _sc.check_sphere_meg(rr, B, solution)
     return B
 
 

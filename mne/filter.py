@@ -11,6 +11,7 @@ from math import gcd
 
 import numpy as np
 
+from ._scientific_checkers import _module as _sc
 from ._fiff.pick import _picks_to_idx
 from ._ola import _COLA
 from .cuda import (
@@ -286,6 +287,9 @@ def _overlap_add_filter(
     pad="reflect_limited",
 ):
     """Filter the signal x using h with overlap-add FFTs."""
+    _sc_in = None
+    if _sc.enabled():
+        _sc_in = (_sc.snap(x), h, n_fft, phase, picks, pad)
     # set up array for filtering, reshape to 2D, operate on last axis
     x, orig_shape, picks = _prep_for_filtering(x, copy, picks)
     # Extend the signal by mirroring the edges to reduce transient filter
@@ -349,6 +353,8 @@ def _overlap_add_filter(
             x[p] = data_new[pp]
 
     x = x.reshape(orig_shape, copy=False)
+    if _sc_in is not None:
+        _sc.check_overlap_add(*_sc_in, x)
     return x
 
 
@@ -515,6 +521,8 @@ def _construct_fir_filter(
             f"Attenuation at stop frequency {att_freq:0.2f} Hz is only {att_db:0.2f} "
             "dB. Increase filter_length for higher attenuation."
         )
+    if _sc.enabled():
+        _sc.check_fir_symmetry(h, phase)
     return h
 
 
@@ -1646,6 +1654,8 @@ def create_filter(
         out = _construct_fir_filter(
             sfreq, freq, gain, filter_length, phase, fir_window, fir_design
         )
+        if _sc.enabled():
+            _sc.check_fir_cutoff(out, freq, gain, sfreq, phase, fir_design)
     return out
 
 
@@ -2260,6 +2270,9 @@ def resample(
     important consequences, and the default choices should work well
     for most natural signals.
     """
+    _sc_call = None
+    if _sc.enabled():
+        _sc_call = _sc.resample_call(x, up, down, axis, window, pad, npad, method)
     _validate_type(method, str, "method")
     _validate_type(pad, str, "pad")
     _check_option("method", method, ("fft", "polyphase"))
@@ -2299,6 +2312,8 @@ def resample(
     # restore dimensions (reshape then swap axis with last)
     y = y.reshape(out_shape).swapaxes(axis, -1)
 
+    if _sc_call is not None:
+        _sc.check_resample(_sc_call, y)
     return y
 
 
@@ -3407,6 +3422,8 @@ def _my_hilbert(x, n_fft=None, envelope=False):
     out = signal.hilbert(x, N=n_fft, axis=-1)[..., :n_x]
     if envelope:
         out = np.abs(out)
+    if _sc.enabled():
+        _sc.check_hilbert(x, n_fft, envelope, out)
     return out
 
 

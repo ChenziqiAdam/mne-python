@@ -6,6 +6,7 @@
 
 import numpy as np
 
+from .._scientific_checkers import _module as _sc
 from ..parallel import parallel_func
 from ..utils import (
     _check_option,
@@ -75,14 +76,18 @@ def dpss_windows(N, half_nbw, Kmax, *, sym=True, norm=None, low_bias=True):
         dpss, eigvals = sp_dpss(
             N, half_nbw, Kmax, sym=sym, norm=norm, return_ratios=True
         )
+    _sc_fallback = False
     if low_bias:
         idx = eigvals > 0.9
         if not idx.any():
+            _sc_fallback = True
             warn("Could not properly use low_bias, keeping lowest-bias taper")
             idx = [np.argmax(eigvals)]
         dpss, eigvals = dpss[idx], eigvals[idx]
     assert len(dpss) > 0  # should never happen
     assert dpss.shape[1] == N  # old nitime bug
+    if _sc.enabled():
+        _sc.check_dpss(N, half_nbw, sym, low_bias, dpss, eigvals, _sc_fallback)
     return dpss, eigvals
 
 
@@ -433,6 +438,12 @@ def psd_array_multitaper(
     from scipy.fft import rfftfreq
 
     _check_option("normalization", normalization, ["length", "full"])
+    _sc_call = None
+    if _sc.enabled():
+        _sc_call = _sc.psd_call(
+            x, sfreq, fmin, fmax, bandwidth, adaptive, low_bias, normalization,
+            remove_dc, output, max_iter,
+        )
 
     # Reshape data so its 2-D for parallelization
     ndim_in = x.ndim
@@ -488,6 +499,8 @@ def psd_array_multitaper(
     if ndim_in == 1:
         psd = psd[0]
 
+    if _sc_call is not None:
+        _sc.check_psd_multitaper(_sc_call, psd)
     if output == "complex":
         return psd, freqs, weights
     else:

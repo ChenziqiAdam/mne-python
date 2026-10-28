@@ -4,6 +4,8 @@
 
 import numpy as np
 
+from .._scientific_checkers import _module as _sc
+
 
 def _ecdf(x):
     """No frills empirical cdf used in fdrcorrection."""
@@ -68,6 +70,10 @@ def fdr_correction(pvals, alpha=0.05, method="indep"):
     pvals_corrected[pvals_corrected > 1.0] = 1.0
     pvals_corrected = pvals_corrected[sortrevind].reshape(shape_init)
     reject = reject[sortrevind].reshape(shape_init)
+    if _sc.enabled():
+        _sc.check_fdr(
+            pvals.reshape(shape_init), alpha, method, reject, pvals_corrected
+        )
     return reject, pvals_corrected
 
 
@@ -93,4 +99,6 @@ def bonferroni_correction(pval, alpha=0.05):
     # p-values must not be larger than 1.
     pval_corrected = pval_corrected.clip(max=1.0)
     reject = pval_corrected < alpha
+    if _sc.enabled():
+        _sc.check_bonferroni(pval, alpha, reject, pval_corrected)
     return reject, pval_corrected

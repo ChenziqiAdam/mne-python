@@ -17,6 +17,7 @@ from time import time
 
 import numpy as np
 
+from .._scientific_checkers import _module as _sc
 from .._fiff.constants import FIFF
 from .._fiff.matrix import (
     _read_named_matrix,
@@ -1498,6 +1499,13 @@ def compute_depth_prior(
     from ..cov import Covariance, compute_whitener
 
     _validate_type(forward, Forward, "forward")
+    _sc_call = None
+    if _sc.enabled():
+        _sc_call = dict(
+            forward=forward, info=info, exp=exp, limit=limit,
+            limit_depth_chs=limit_depth_chs, combine_xyz=combine_xyz,
+            noise_cov=noise_cov, rank=rank,
+        )
     patch_areas = forward.get("patch_areas", None)
     is_fixed_ori = is_fixed_orient(forward)
     G = forward["sol"]["data"]
@@ -1585,6 +1593,8 @@ def compute_depth_prior(
     if not (is_fixed_ori or combine_xyz is False):
         depth_prior = np.repeat(depth_prior, 3)
 
+    if _sc_call is not None:
+        _sc.check_depth_prior(_sc_call, depth_prior)
     return depth_prior
 
 

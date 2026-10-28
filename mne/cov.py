@@ -8,6 +8,7 @@ from math import log
 
 import numpy as np
 
+from ._scientific_checkers import _module as _sc
 from ._fiff.constants import FIFF
 from ._fiff.meas_info import _read_bad_channels, _write_bad_channels, create_info
 from ._fiff.pick import (
@@ -1086,13 +1087,17 @@ def compute_raw_covariance(
             data += np.dot(raw_segment, raw_segment.T)
             n_samples += raw_segment.shape[1]
         _check_n_samples(n_samples, len(picks), on_few_samples)
+        _sc_m2 = np.diag(data) / (n_samples - 1.0) if _sc.enabled() else None
         data -= mu[:, None] * (mu[None, :] / n_samples)
         data /= n_samples - 1.0
         logger.info("Number of samples used : %d", n_samples)
         logger.info("[done]")
         ch_names = [raw.info["ch_names"][k] for k in picks]
         bads = [b for b in raw.info["bads"] if b in ch_names]
-        return Covariance(data, ch_names, bads, raw.info["projs"], nfree=n_samples - 1)
+        cov = Covariance(data, ch_names, bads, raw.info["projs"], nfree=n_samples - 1)
+        if _sc.enabled():
+            _sc.check_covariance(cov, _sc_m2)
+        return cov
     del picks, pick_mask
 
     # This makes it equivalent to what we used to do (and do above for
@@ -1571,6 +1576,7 @@ def compute_covariance(
         inst = inst[0]
 
     inst = np.hstack(inst)
+    _sc_m2 = np.mean(inst * inst, axis=-1) if _sc.enabled() else None
     n_samples_tot = inst.shape[-1]
     _check_n_samples(n_samples_tot, len(picks_meeg), on_few_samples)
 
@@ -1624,6 +1630,8 @@ def compute_covariance(
         out = covs[0]
     logger.info("[done]")
 
+    if _sc.enabled():
+        _sc.check_covariance(out, _sc_m2)
     return out
 
 

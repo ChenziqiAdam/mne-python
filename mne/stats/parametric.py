@@ -7,6 +7,7 @@ from string import ascii_uppercase
 
 import numpy as np
 
+from .._scientific_checkers import _module as _sc
 from ..utils import _check_option
 
 # The following function is a rewriting of scipy.stats.f_oneway
@@ -190,6 +191,8 @@ def f_oneway(*args, sigma=0.0, method="relative"):
             sigma_sq = float(sigma)
         msw = (sswn + sigma_sq) / float(dfwn)
     f = msb / msw
+    if _sc.enabled():
+        _sc.check_f_oneway(args, sigma, f)
     return f
 
 

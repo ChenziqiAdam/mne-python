@@ -13,6 +13,7 @@ from functools import partial
 
 import numpy as np
 
+from .._scientific_checkers import _module as _sc
 from .._fiff.meas_info import ContainsMixin, Info
 from .._fiff.pick import _picks_to_idx, pick_info
 from ..baseline import _check_baseline, rescale
@@ -204,6 +205,8 @@ def morlet(sfreq, freqs, n_cycles=7.0, sigma=None, zero_mean=False):
         # Tallon-Baudry 1997: (sigma_t*sqrt(pi))^(-1/2).  It yields a wavelet
         # with norm sqrt(2) for the full wavelet / norm 1 for the real part
         W /= np.sqrt(0.5) * np.linalg.norm(W.ravel())
+        if zero_mean and _sc.enabled():
+            _sc.check_morlet(W, sigma_t, sfreq, f)
         Ws.append(W)
     if singleton:
         Ws = Ws[0]
